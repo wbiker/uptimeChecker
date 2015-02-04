@@ -4,8 +4,12 @@ use Modern::Perl;
 use Getopt::Std;
 use DBI;
 #use Data::Dumper;
+use FindBin qw($Bin);
+use lib "$Bin";
 use SQLWrapper; # sql wrapper
 use Try::Tiny;
+use Data::Printer;
+use File::Spec::Functions qw(catfile);
 
 # Command line options
 # -u update. this updated the database with the current date, time, hour, minute, current charge and max charge
@@ -20,22 +24,34 @@ if(-1 == $#ARGV) {
 	exit;
 }
 
-say "read command line";
 our $opt_u;
 our $opt_l;
 our $opt_c;
 our $opt_s;
 our $opt_m;
-getopts("ulcsm") or die "Could not parse command line parameters.";
+our $opt_d;
+getopts("ulcsmd") or die "Could not parse command line parameters.";
 
-my $sql = SQLWrapper->new(connectionString => 'dbi:SQLite:dbname=uptime.db',
+say "read command line" unless $opt_d;
+
+my $db = catfile($Bin, 'uptime.db');
+my $sql = SQLWrapper->new(connectionString => "dbi:SQLite:dbname=$db",
 	user => '', # SQLite does not use user
 	password => '' # and password.
 	);
 
 if($opt_c) {
-	my $create_table = "CREATE TABLE batdata (date VARCHAR(12), hour INTEGER, minute INTEGER, remainingCapacity INTEGER, lastFullCapacity INTEGER)";
-	$sql->do($create_table);
+    print "Do you realy want do create a new table. You know if already exists it will be delete! N/y: ";
+    my $input = <STDIN>;
+    chomp($input);
+    if('y' eq lc($input)) {
+        say "Drop Table";
+        my $drop_table = "DROP TABLE batdata";
+        say "Create new table";
+	    my $create_table = "CREATE TABLE batdata (date VARCHAR(12), hour INTEGER, minute INTEGER, remainingCapacity INTEGER, lastFullCapacity INTEGER)";
+        $sql->do($drop_table);
+	    $sql->do($create_table);
+    }
 	exit;
 }
 
@@ -82,7 +98,7 @@ if($opt_l) {
 	}
 }
 
-if($opt_s) {
+if($opt_s || $opt_d) {
 	# read the database table information and calculates the report
 	# report looks like
 	# start date: <running time in minutes> <end date> <mWh consumption> <mWh consumption per minute> 
@@ -102,15 +118,19 @@ if($opt_s) {
 			$last_remaining_capacity = $dataset->[3];
 			$minutes++;
 		}
+        elsif (20000 > ($dataset->[3] - $last_remaining_capacity)) {
+            $last_remaining_capacity = $dataset->[3];
+            $minutes++;
+        }
 		else { # the mWh are more so the api was charged in the mean time.
 			my $needed_mW = $start_capacity - $data[$cnt-1]->[3]; # fetch the conumed mWh from the record before.
 			if(0 != $minutes) {
 				my $mWperMin = sprintf("%d", $needed_mW / $minutes);
-				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute"; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute" unless $opt_d; # print
 			}
 			else {
 				my $mWperMin = 0;
-				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute"; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute" unless $opt_d; # print
 			}
 			# battery was charging. reset variables.
 			$last_remaining_capacity = $dataset->[3];
@@ -119,12 +139,14 @@ if($opt_s) {
 		}
 	}
 	# at the end of the report I print the running minutes so far.
-	say "$minutes minutes run so far.";
+	say "$minutes minutes run so far." if $opt_s;
+    print "$minutes minutes" if $opt_d;
 }# opt_s
 
 if($opt_m) {
 	my @data = $sql->return_all_rows();
 	
+    my @diff;
 	# filter output: I am interested just in the maximal capacity:
 	say "Maximal capacities:";
 	my $last_value = 0;
@@ -132,10 +154,12 @@ if($opt_m) {
 		my $max_capacity = $recort->[4];
 		
 		if($max_capacity != $last_value) {
+            push(@diff, $last_value - $max_capacity) if $last_value > $max_capacity;
 			say $max_capacity;
 			$last_value = $max_capacity;
 		}
 	}
+    p @diff;
 } # $opt_m
 exit;
 
@@ -170,19 +194,19 @@ sub get_bat_info {
 
 	my ($last_full_capacity, $charging_state, $remaining_capacity);
 	for my $line (@file_content) {
-		if($line =~ /\APOWER_SUPPLY_CHARGE_FULL=(\d{5})/) {
+		if($line =~ /\APOWER_SUPPLY_CHARGE_FULL=(\d+)/) {
 			$last_full_capacity = $1;
 		}
-		elsif($line =~ /\APOWER_SUPPLY_ENERGY_FULL=(\d{5})/) {
+		elsif($line =~ /\APOWER_SUPPLY_ENERGY_FULL=(\d+)/) {
 			$last_full_capacity = $1;
 		}
 		elsif($line =~ /\APOWER_SUPPLY_STATUS=(\w+)\Z/) {
 			$charging_state = $1;
 		}
-		elsif($line =~ /\APOWER_SUPPLY_CHARGE_NOW=(\d{5})/) {
+		elsif($line =~ /\APOWER_SUPPLY_CHARGE_NOW=(\d+)/) {
 			$remaining_capacity = $1;
 		}
-		elsif($line =~ /\APOWER_SUPPLY_ENERGY_NOW=(\d{5})/) {
+		elsif($line =~ /\APOWER_SUPPLY_ENERGY_NOW=(\d+)/) {
 			$remaining_capacity = $1;
 		}
 	}
