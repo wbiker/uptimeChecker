@@ -70,7 +70,15 @@ if($opt_u) {
 		$year += 1900;
 		$day = sprintf("%02d", $day);	# add a 0 if a single day
 		$mon = sprintf("%02d", $mon);	# add a 0 in front if a single month
-		my $query = "INSERT INTO batdata VALUES(\"$day.$mon.$year\", $hour, $min, $remaining_capacity, $last_full_capacity)";
+        
+        # the remaining_capacity no longer saved in the database. I compute the percentage and store it.
+        # otherwise, the remaining_capacity canged every now and then. 
+        
+        my $percent = $last_full_capacity / $remaining_capacity;
+        $percent = 100/$percent;
+        $percent = sprintf("%.2f", $percent);
+
+		my $query = "INSERT INTO batdata VALUES(\"$day.$mon.$year\", $hour, $min, $percent, $last_full_capacity)";
 		say $query;
 		try {
 			$sql->do($query);
