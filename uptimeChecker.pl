@@ -105,7 +105,7 @@ if($opt_s || $opt_d) {
 	my @data = $sql->return_all_rows();
 	
 	my $start_date = undef;
-	my $last_remaining_capacity = 999999; #initialze variable.
+	my $last_remaining_capacity = 999999999; #initialze variable.
 	my $start_capacity;
 	my $minutes = 0;
 	for my $cnt (0..$#data) {
@@ -118,10 +118,6 @@ if($opt_s || $opt_d) {
 			$last_remaining_capacity = $dataset->[3];
 			$minutes++;
 		}
-        elsif (20000 > ($dataset->[3] - $last_remaining_capacity)) {
-            $last_remaining_capacity = $dataset->[3];
-            $minutes++;
-        }
 		else { # the mWh are more so the api was charged in the mean time.
 			my $needed_mW = $start_capacity - $data[$cnt-1]->[3]; # fetch the conumed mWh from the record before.
 			if(0 != $minutes) {
