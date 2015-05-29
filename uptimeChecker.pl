@@ -60,7 +60,7 @@ if($opt_u) {
 	
 	# use a class to be able to change behavor for different battery types or OSs.
 	my $bat = ReadBattery->new;
-	my ($last_full_capacity, $charging_state, $remaining_capacity) = $bat->get_bat_info;
+	my ($last_full_capacity, $charging_state, $remaining_capacity, $full_design_capacity) = $bat->get_bat_info;
 	
 	if(lc $charging_state eq "discharging") {
 		# write following data in the database
@@ -74,7 +74,7 @@ if($opt_u) {
         # the remaining_capacity no longer saved in the database. I compute the percentage and store it.
         # otherwise, the remaining_capacity canged every now and then. 
         
-        my $percent = $last_full_capacity / $remaining_capacity;
+        my $percent = $full_design_capacity / $remaining_capacity;
         $percent = 100/$percent;
         $percent = sprintf("%.2f", $percent);
 
@@ -196,7 +196,7 @@ sub get_bat_info {
 	my $bat_path = $self->find_bat_path;
 	my @file_content = read_file($bat_path."/uevent") or die "Could not read $bat_path/uevent: $!";
 
-	my ($last_full_capacity, $charging_state, $remaining_capacity);
+	my ($last_full_capacity, $charging_state, $remaining_capacity, $full_design_capacity);
 	for my $line (@file_content) {
 		if($line =~ /\APOWER_SUPPLY_CHARGE_FULL=(\d+)/) {
 			$last_full_capacity = $1;
@@ -213,13 +213,17 @@ sub get_bat_info {
 		elsif($line =~ /\APOWER_SUPPLY_ENERGY_NOW=(\d+)/) {
 			$remaining_capacity = $1;
 		}
+		elsif($line =~ /\APOWER_SUPPLY_CHARGE_FULL_DESIGN=(\d+)/) {
+			$full_design_capacity = $1;
+		}
 	}
 
 	croak "Could not find last full capacity!" unless $last_full_capacity;
 	croak "Could not find charging state!" unless $charging_state;
 	croak "Could not find remaining capacity!" unless $remaining_capacity;
+	croak "Could not find full design capacity!" unless $full_design_capacity;
 		
-	return ($last_full_capacity, $charging_state, $remaining_capacity);
+	return ($last_full_capacity, $charging_state, $remaining_capacity, $full_design_capacity);
 }
 
 sub find_bat_path {

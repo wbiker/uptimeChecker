@@ -2,3 +2,5 @@ Modern::Perl
 Moo
 File::Slurp
 DBD::SQLite
+Try::Tiny
+Data::Printer
