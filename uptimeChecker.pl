@@ -113,31 +113,26 @@ if($opt_s || $opt_d) {
 	my @data = $sql->return_all_rows();
 	
 	my $start_date = undef;
-	my $last_remaining_capacity = 999999999; #initialze variable.
-	my $start_capacity;
+	my $last_percent = 999999999; #initialze variable.
 	my $minutes = 0;
 	for my $cnt (0..$#data) {
 		my $dataset = $data[$cnt]; # get the array
 		if(!$start_date) {
 			$start_date = $dataset->[0]; # if undef I know it is the first datarecord.
-			$start_capacity = $dataset->[3]; # I use this to calculate how many mWh was consumed.
 		}
-		if($dataset->[3] < $last_remaining_capacity){ # as long as the new consumed mW is less than the before.
-			$last_remaining_capacity = $dataset->[3];
+		if($dataset->[3] < $last_percent){ # as long as the new consumed mW is less than the before.
+			$last_percent = $dataset->[3];
 			$minutes++;
 		}
-		else { # the mWh are more so the api was charged in the mean time.
-			my $needed_mW = $start_capacity - $data[$cnt-1]->[3]; # fetch the conumed mWh from the record before.
+		else { # the percent are more so the api was charged in the mean time.
 			if(0 != $minutes) {
-				my $mWperMin = sprintf("%d", $needed_mW / $minutes);
-				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute" unless $opt_d; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d; # print
 			}
 			else {
-				my $mWperMin = 0;
-				say "$start_date: ", $minutes, " run till ", $dataset->[0], " needed $needed_mW mWh @ $mWperMin mWh per minute" unless $opt_d; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d; # print
 			}
 			# battery was charging. reset variables.
-			$last_remaining_capacity = $dataset->[3];
+			$last_percent = $dataset->[3];
 			$minutes = 0;
 			$start_date = undef;
 		}
