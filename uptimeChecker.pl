@@ -193,22 +193,16 @@ sub get_bat_info {
 
 	my ($last_full_capacity, $charging_state, $remaining_capacity, $full_design_capacity);
 	for my $line (@file_content) {
-		if($line =~ /\APOWER_SUPPLY_CHARGE_FULL=(\d+)/) {
-			$last_full_capacity = $1;
-		}
-		elsif($line =~ /\APOWER_SUPPLY_ENERGY_FULL=(\d+)/) {
+		if($line =~ /\APOWER_SUPPLY_ENERGY_FULL=(\d+)/) {
 			$last_full_capacity = $1;
 		}
 		elsif($line =~ /\APOWER_SUPPLY_STATUS=(\w+)\Z/) {
 			$charging_state = $1;
 		}
-		elsif($line =~ /\APOWER_SUPPLY_CHARGE_NOW=(\d+)/) {
-			$remaining_capacity = $1;
-		}
 		elsif($line =~ /\APOWER_SUPPLY_ENERGY_NOW=(\d+)/) {
 			$remaining_capacity = $1;
 		}
-		elsif($line =~ /\APOWER_SUPPLY_CHARGE_FULL_DESIGN=(\d+)/) {
+		elsif($line =~ /\APOWER_SUPPLY_ENERGY_FULL_DESIGN=(\d+)/) {
 			$full_design_capacity = $1;
 		}
 	}
