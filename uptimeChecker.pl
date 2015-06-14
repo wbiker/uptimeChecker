@@ -17,6 +17,8 @@ use File::Spec::Functions qw(catfile);
 # -c create. Create the batdata table. Drops may already existing database
 # -s show: show the uptime
 # -m max capacity: shows the maximal capacity
+# -d current: shows the running minutes so far.
+# -a last running minutes: prints the minutes of the last battery run
 # without arguments the help is printed.
 
 if(-1 == $#ARGV) {
@@ -30,9 +32,10 @@ our $opt_c;
 our $opt_s;
 our $opt_m;
 our $opt_d;
-getopts("ulcsmd") or die "Could not parse command line parameters.";
+our $opt_a;
+getopts("ulcsmda") or die "Could not parse command line parameters.";
 
-say "read command line" unless $opt_d;
+say "read command line" unless $opt_d or $opt_a;
 
 my $db = catfile($Bin, 'uptime.db');
 my $sql = SQLWrapper->new(connectionString => "dbi:SQLite:dbname=$db",
@@ -106,7 +109,7 @@ if($opt_l) {
 	}
 }
 
-if($opt_s || $opt_d) {
+if($opt_s || $opt_d || $opt_a) {
 	# read the database table information and calculates the report
 	# report looks like
 	# start date: <running time in minutes> <end date> <mWh consumption> <mWh consumption per minute> 
@@ -115,24 +118,26 @@ if($opt_s || $opt_d) {
 	my $start_date = undef;
 	my $last_percent = 999999999; #initialze variable.
 	my $minutes = 0;
+    my $last_uptime_minutes = 0;
 	for my $cnt (0..$#data) {
 		my $dataset = $data[$cnt]; # get the array
 		if(!$start_date) {
 			$start_date = $dataset->[0]; # if undef I know it is the first datarecord.
 		}
-		if($dataset->[3] < $last_percent){ # as long as the new consumed mW is less than the before.
+		if($dataset->[3] <= $last_percent){ # as long as the new consumed mW is less than the before.
 			$last_percent = $dataset->[3];
 			$minutes++;
 		}
 		else { # the percent are more so the api was charged in the mean time.
 			if(0 != $minutes) {
-				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d or $opt_a; # print
 			}
 			else {
-				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d; # print
+				say "$start_date: ", $minutes, " run till ", $dataset->[0] unless $opt_d or $opt_a; # print
 			}
 			# battery was charging. reset variables.
 			$last_percent = $dataset->[3];
+            $last_uptime_minutes = $minutes;
 			$minutes = 0;
 			$start_date = undef;
 		}
@@ -140,6 +145,7 @@ if($opt_s || $opt_d) {
 	# at the end of the report I print the running minutes so far.
 	say "$minutes minutes run so far." if $opt_s;
     print "$minutes minutes" if $opt_d;
+    print "$last_uptime_minutes minutes" if $opt_a;
 }# opt_s
 
 if($opt_m) {
