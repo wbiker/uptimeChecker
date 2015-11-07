@@ -143,9 +143,27 @@ if($opt_s || $opt_d || $opt_a) {
 		}
 	}
 	# at the end of the report I print the running minutes so far.
-	say "$minutes minutes run so far." if $opt_s;
-    print "$minutes minutes" if $opt_d;
-    print "$last_uptime_minutes minutes" if $opt_a;
+    my $hours = 0;
+    my $minute = 0;
+    if($minutes > 60) {
+        $hours = $minutes / 60;
+        $minute = $minutes % 60;
+    }
+    else {
+        $minute = $minutes;
+    }
+    printf("%d:%02dh run so far\n", $hours, $minute) if $opt_s;
+    printf("%d:%02dh", $hours, $minute) if $opt_d;
+
+    if($opt_a) {
+        $hours = 0;
+        $minute = 0;
+        if($last_uptime_minutes > 60) {
+            $hours = $last_uptime_minutes / 60;
+            $minute = $last_uptime_minutes % 60;
+        }
+        printf("%d:%02dh", $hours, $minute) if $opt_a;
+    }
 }# opt_s
 
 if($opt_m) {
